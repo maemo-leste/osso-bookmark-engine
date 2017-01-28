@@ -4,6 +4,7 @@
 #include <libgnomevfs/gnome-vfs.h>
 #include <gio/gio.h>
 #include <glib/gprintf.h>
+#include <gconf/gconf-client.h>
 
 #include <unistd.h>
 #include <string.h>
@@ -1211,6 +1212,192 @@ __netscape_export_bookmarks(const gchar *filename, GSList *root,
   g_object_unref(out);
 
   return TRUE;
+}
+
+static gboolean
+dump_xml_doc_and_fsync(xmlDoc *doc, const char *file_path)
+{
+  FILE *fp;
+  gboolean rv;
+
+  g_return_val_if_fail(doc, FALSE);
+  g_return_val_if_fail(file_path, FALSE);
+
+  fp = fopen(file_path, "w");
+  g_return_val_if_fail(fp, FALSE);
+
+  if (!xmlDocFormatDump(fp, doc, 1) == -1)
+  {
+    fsync(fileno(fp));
+    rv = TRUE;
+  }
+  else
+    rv = FALSE;
+
+  fclose(fp);
+
+  return rv;
+}
+
+static xmlNode *
+get_node_by_tag(xmlNode *node, const char *tag)
+{
+  if (xmlStrcmp(node->name, (const xmlChar *)tag))
+  {
+    while (xmlStrcmp(node->name, (const xmlChar *)"info"))
+    {
+      node = node->next;
+
+      if (!node)
+        return NULL;
+    }
+
+    node = node->children;
+
+    if (xmlStrcmp(node->name, (const xmlChar *)tag))
+    {
+      while (xmlStrcmp(node->name, (const xmlChar *)"metadata"))
+      {
+        node = node->next;
+
+        if (!node)
+          return NULL;
+      }
+
+      node = node->children;
+
+      while (node->type != XML_ELEMENT_NODE)
+      {
+        node = node->next;
+
+        if (!node)
+          return NULL;
+      }
+
+again:
+      if (xmlStrcmp(node->name, (const xmlChar *)tag))
+      {
+        while (1)
+        {
+          node = node->next;
+
+          if (!node)
+            break;
+
+          if (node->type == XML_ELEMENT_NODE)
+            goto again;
+        }
+
+        node = NULL;
+      }
+    }
+  }
+
+  return node;
+}
+
+gboolean nodeptriter = FALSE;
+
+gboolean
+bm_engine_add_duplicate_item(BookmarkItem *parent, BookmarkItem *bm_item)
+{
+  gchar *bm_file;
+  xmlDoc *doc;
+  GSList *list;
+  int len;
+  gboolean rv;
+
+  bm_file = file_path_with_home_dir("/.bookmarks/MyBookmarks.xml");
+  doc = xmlParseFile(bm_file);
+
+  if (!doc)
+  {
+    g_free(bm_file);
+    return FALSE;
+  }
+
+  list = g_slist_reverse(get_complete_path(parent));
+  len = g_slist_length(list);
+  nodeptriter = 1;
+  xmlAddNextSibling(get_parent_nodeptr(list, xmlDocGetRootElement(doc), len),
+                    add_bookmark_item(bm_item));
+
+  set_lock("/.bookmarks/.lock");
+
+  g_slist_free(list);
+  rv = dump_xml_doc_and_fsync(doc, bm_file);
+  g_free(bm_file);
+  xmlFreeDoc(doc);
+
+  del_lock("/.bookmarks/.lock");
+
+  return rv;
+}
+
+gboolean
+bookmark_set_operator_bookmark_as_deleted(BookmarkItem *bm_item,
+                                          gchar *file_name, xmlDocPtr doc,
+                                          xmlNode *root_element)
+{
+  GSList *list;
+  xmlNode *node;
+
+  (void)file_name;
+
+  if (!bm_item)
+  {
+    g_print(" %s\n", "\nInvalid Input Parameter");
+    return FALSE;
+  }
+
+  if (!bm_item->isOperatorBookmark)
+  {
+    g_print(" %s\n", "\nBM Not Operator BM");
+    return FALSE;
+  }
+
+  if (!doc)
+    return FALSE;
+
+  list = g_slist_reverse(get_complete_path(bm_item));
+
+  nodeptriter = 1;
+  node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+  if (node && (node = get_node_by_tag(node->children, "deleted")))
+  {
+    xmlNodeSetContent(node, (const xmlChar *)"1");
+    g_slist_free(list);
+    return TRUE;
+  }
+
+  g_slist_free(list);
+
+  return FALSE;
+}
+
+static GConfClient *
+osso_bookmark_gconf_init_default_client()
+{
+  return gconf_client_get_default();
+}
+
+SortType osso_bookmark_gconf_get_int(gchar * key)
+{
+  GConfClient *client;
+  GError *err = NULL;
+
+  if (key && (client = osso_bookmark_gconf_init_default_client()))
+  {
+    int rv = gconf_client_get_int(client, key, &err);
+
+    if (err)
+      g_error_free(err);
+
+    return rv;
+  }
+
+  return 0;
 }
 
 #ifdef BOOKMARK_PARSER_TEST
