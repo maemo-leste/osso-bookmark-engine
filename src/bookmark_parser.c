@@ -1,4 +1,3 @@
-#define BOOKMARK_ENGINE_DISABLE_DEPRECATED
 #include "osso_bookmark_parser.h"
 
 #include <libgnomevfs/gnome-vfs.h>
@@ -11,9 +10,10 @@
 #include <libintl.h>
 #include <ctype.h>
 
-#ifdef BOOKMARK_ENGINE_DISABLE_DEPRECATED
-#define MYBOOKMARKS                 "/.bookmarks/MyBookmarks.xml"
-#define MYBOOKMARKSFILEBACKUP       "/.bookmarks/MyBookmarks.xml.backup"
+#ifdef BOOKMARK_PARSER_TEST
+#define TEST(fun) __##fun
+#else
+#define TEST(fun) fun
 #endif
 
 BookmarkItem *
@@ -72,7 +72,7 @@ get_attribute_pointer(xmlNode *node, const char *attribute)
 
   do
   {
-    if (node->type == 1 && !xmlStrcmp(node->name, (const xmlChar *)attribute))
+    if (node->type == 1 && !xmlStrcmp(node->name, BAD_CAST attribute))
       break;
 
     node = node->next;
@@ -201,7 +201,7 @@ assign_node_text_contents(gchar **s, xmlNode *node)
 static void
 assign_text_attribute(gchar **s, xmlNode *node, const char* attr)
 {
-  xmlChar *xs = xmlGetProp(node, (const xmlChar *)attr);
+  xmlChar *xs = xmlGetProp(node, BAD_CAST attr);
 
   if (xs)
   {
@@ -228,7 +228,7 @@ get_node_int_contents(xmlNode *node)
 static inline gboolean
 node_name_is(const xmlNode *node, const char *name)
 {
-  return !xmlStrcmp(node->name, (const xmlChar *)name);
+  return !xmlStrcmp(node->name, BAD_CAST name);
 }
 
 static void
@@ -269,7 +269,7 @@ print_root_names(xmlNode *node)
 
   for (node = node->children; node; node = node->next)
   {
-    if (!xmlStrcmp(node->name, (const xmlChar *)"title"))
+    if (!xmlStrcmp(node->name, BAD_CAST "title"))
     {
       assign_node_text_contents(&bm_item->name, node);
     }
@@ -314,12 +314,8 @@ print_root_names(xmlNode *node)
 }
 
 gboolean
-#ifdef BOOKMARK_PARSER_TEST
-__get_root_bookmark_absolute_path(BookmarkItem **bookmark_root,
-                                  gchar *file_name)
-#else
-get_root_bookmark_absolute_path(BookmarkItem **bookmark_root, gchar *file_name)
-#endif
+TEST(get_root_bookmark_absolute_path)(BookmarkItem **bookmark_root,
+                                      gchar *file_name)
 {
   xmlDoc *doc;
   xmlNode *node;
@@ -355,45 +351,37 @@ get_root_bookmark_absolute_path(BookmarkItem **bookmark_root, gchar *file_name)
   return FALSE;
 }
 
-#ifdef BOOKMARK_ENGINE_DISABLE_DEPRECATED
 static gboolean
 _get_root_bookmark(BookmarkItem **bookmark_root, gchar *file_name)
-#else
-gboolean
-get_root_bookmark(BookmarkItem **bookmark_root, gchar *file_name)
-#endif
 {
   gboolean rv;
 
-  file_name = file_path_with_home_dir(file_name);
-#ifdef BOOKMARK_PARSER_TEST
-  rv = __get_root_bookmark_absolute_path(bookmark_root, file_name);
-#else
-  rv = get_root_bookmark_absolute_path(bookmark_root, file_name);
-#endif
-  g_free(file_name);
+  gchar *bm_file = file_path_with_home_dir(file_name);
+
+  rv = TEST(get_root_bookmark_absolute_path)(bookmark_root, bm_file);
+
+  g_free(bm_file);
 
   return rv;
 }
 
-#ifdef BOOKMARK_ENGINE_DISABLE_DEPRECATED
 gboolean
-#ifdef BOOKMARK_PARSER_TEST
-__get_root_bookmark(BookmarkItem **bookmark_root)
-#else
-get_root_bookmark(BookmarkItem **bookmark_root)
-#endif
+TEST(get_root_bookmark) (BookmarkItem **bookmark_root,
+                         gchar *file_name)
 {
+  (void)file_name;
+
   return _get_root_bookmark(bookmark_root, MYBOOKMARKS);
 }
-#endif
 
 gboolean
-create_bookmarks_backup()
+create_bookmarks_backup(const gchar *file_name)
 {
   gchar *bookmark_file;
   gchar *cmd;
   gchar *backup_file;
+
+  (void)file_name;
 
   bookmark_file = file_path_with_home_dir(MYBOOKMARKS);
   backup_file = g_strdup_printf("%s.backup", bookmark_file);
@@ -432,7 +420,8 @@ create_empty_bookmark_template(char *file_name)
 }
 
 gboolean
-get_bookmark_from_backup(BookmarkItem **bookmark_root)
+get_bookmark_from_backup (BookmarkItem **bookmark_root,
+                          const gchar *file_name_unused)
 {
   gchar *file_name;
   gchar *backup_file_name;
@@ -440,6 +429,8 @@ get_bookmark_from_backup(BookmarkItem **bookmark_root)
   gboolean rv;
   gsize length = 0;
   gchar *contents = NULL;
+
+  (void)file_name_unused;
 
   file_name = file_path_with_home_dir(MYBOOKMARKS);
   backup_file_name = g_strdup_printf("%s.backup", file_name);
@@ -815,13 +806,8 @@ netscape_import_bookmarks(const gchar *path, gboolean use_locale,
 }
 
 gboolean
-#ifdef BOOKMARK_PARSER_TEST
-__bookmark_import(const gchar *path, gchar *importFolderName,
-                  BookmarkItem **import_folder)
-#else
-bookmark_import(const gchar *path, gchar *importFolderName,
-                BookmarkItem **import_folder)
-#endif
+TEST(bookmark_import)(const gchar *path, gchar *importFolderName,
+                      BookmarkItem **import_folder)
 {
   gchar *line;
   BookmarkItem *bm_item;
@@ -1242,9 +1228,9 @@ dump_xml_doc_and_fsync(xmlDoc *doc, const char *file_path)
 static xmlNode *
 get_node_by_tag(xmlNode *node, const char *tag)
 {
-  if (xmlStrcmp(node->name, (const xmlChar *)tag))
+  if (xmlStrcmp(node->name, BAD_CAST tag))
   {
-    while (xmlStrcmp(node->name, (const xmlChar *)"info"))
+    while (xmlStrcmp(node->name, BAD_CAST "info"))
     {
       node = node->next;
 
@@ -1254,9 +1240,9 @@ get_node_by_tag(xmlNode *node, const char *tag)
 
     node = node->children;
 
-    if (xmlStrcmp(node->name, (const xmlChar *)tag))
+    if (xmlStrcmp(node->name, BAD_CAST tag))
     {
-      while (xmlStrcmp(node->name, (const xmlChar *)"metadata"))
+      while (xmlStrcmp(node->name, BAD_CAST "metadata"))
       {
         node = node->next;
 
@@ -1275,7 +1261,7 @@ get_node_by_tag(xmlNode *node, const char *tag)
       }
 
 again:
-      if (xmlStrcmp(node->name, (const xmlChar *)tag))
+      if (xmlStrcmp(node->name, BAD_CAST tag))
       {
         while (1)
         {
@@ -1297,6 +1283,189 @@ again:
 }
 
 gboolean nodeptriter = FALSE;
+
+static xmlNode *
+create_new_xmlnode(xmlNode *parent_node, BookmarkItem *bm_item)
+{
+  xmlNode *node;
+  xmlNode *info;
+  xmlNode *metadata;
+  gchar *visit_count;
+  gchar *last_visited;
+  gchar *added;
+
+  if (!bm_item || !parent_node)
+    return NULL;
+
+  last_visited = g_strdup_printf("%d", bm_item->time_last_visited);
+  added = g_strdup_printf("%d", bm_item->time_added);
+  visit_count = g_strdup_printf("%d", bm_item->visit_count);
+
+  xmlAddChild(parent_node, xmlNewText(BAD_CAST "\n"));
+
+  if (bm_item->isFolder)
+  {
+    node = xmlNewChild(parent_node, NULL, BAD_CAST "folder", NULL);
+    xmlSetProp(node, BAD_CAST "folded", BAD_CAST "no");
+    xmlAddChild(node, xmlNewText(BAD_CAST "\n"));
+    xmlNewTextChild(node, NULL, BAD_CAST "title", BAD_CAST bm_item->name);
+  }
+  else
+  {
+    gchar *s;
+
+    node = xmlNewChild(parent_node, NULL, BAD_CAST "bookmark", NULL);
+    xmlSetProp(node, BAD_CAST "href", BAD_CAST bm_item->url);
+    xmlSetProp(node, BAD_CAST "favicon", BAD_CAST bm_item->favicon_file);
+    xmlSetProp(node, BAD_CAST "thumbnail", BAD_CAST bm_item->thumbnail_file);
+    xmlAddChild(node, xmlNewText(BAD_CAST "\n"));
+
+    s = g_strndup(bm_item->name, strlen(bm_item->name) - 3);
+    xmlNewTextChild(node, NULL, BAD_CAST "title", BAD_CAST s);
+    g_free(s);
+  }
+
+  info = xmlNewChild(node, NULL, BAD_CAST "info", NULL);
+  metadata = xmlNewChild(info, NULL, BAD_CAST "metadata", NULL);
+  xmlNewChild(metadata, NULL, BAD_CAST "time_visited", BAD_CAST last_visited);
+  xmlNewChild(metadata, NULL, BAD_CAST "time_added", BAD_CAST added);
+  xmlNewChild(metadata, NULL, BAD_CAST "visit_count", BAD_CAST visit_count);
+
+  if (bm_item->isOperatorBookmark)
+  {
+    gchar *s = g_strdup_printf("%d", bm_item->isOperatorBookmark);
+
+    xmlNewChild(info, NULL, BAD_CAST "operator_bookmark", BAD_CAST s);
+    g_free(s);
+
+    s = g_strdup_printf("%d", bm_item->isDeleted);
+    xmlNewChild(info, NULL, BAD_CAST "deleted", BAD_CAST s);
+    g_free(s);
+  }
+
+  g_free(added);
+  g_free(last_visited);
+  g_free(visit_count);
+
+  return node;
+}
+
+static void
+add_xmlnode_to_parent(BookmarkItem *parent_item, xmlNode *parent_node)
+{
+  xmlNode *node;
+  GSList *list;
+
+  CHECK_PARAM(!parent_item || !parent_node,
+              "\nInvalid Input Parameter", return);
+
+  node = create_new_xmlnode(parent_node, parent_item);
+
+  for (list = parent_item->list; list; list = list->next)
+  {
+    BookmarkItem *bm_item;
+
+    while (1)
+    {
+      bm_item = list->data;
+
+      if (bm_item->isFolder)
+        break;
+
+      create_new_xmlnode(node, bm_item);
+      list = list->next;
+
+      if (!list)
+        return;
+    }
+
+    add_xmlnode_to_parent(bm_item, node);
+  }
+}
+
+static xmlNode *
+add_bookmark_item(const BookmarkItem *bm_item)
+{
+  xmlNode *item;
+  xmlNode *metadata;
+  gchar *last_visited;
+  gchar *added;
+  int list_len;
+  GSList *list;
+
+  CHECK_PARAM(!bm_item, "\nInvalid Input Parameter", return NULL);
+
+  last_visited = g_strdup_printf("%d", bm_item->time_last_visited);
+  added = g_strdup_printf("%d", bm_item->time_added);
+
+  if (bm_item->isFolder)
+  {
+    xmlNode *info;
+
+    item = xmlNewNode(NULL, BAD_CAST "folder");
+    xmlAddChild(item, xmlNewText(BAD_CAST "\n"));
+    xmlSetProp(item, BAD_CAST "folded", BAD_CAST "no");
+    xmlNewTextChild(item, NULL, BAD_CAST "title",
+                    BAD_CAST bm_item->name);
+    info = xmlNewChild(item, NULL, BAD_CAST "info", NULL);
+    xmlAddChild(info, xmlNewText(BAD_CAST "\n"));
+    metadata = xmlNewChild(info, NULL, BAD_CAST "metadata", 0);
+    xmlNewChild(metadata, NULL, BAD_CAST "time_visited", BAD_CAST last_visited);
+    xmlNewChild(metadata, NULL, BAD_CAST "time_added", BAD_CAST added);
+  }
+  else
+  {
+    gchar *s;
+
+    item = xmlNewNode(NULL, BAD_CAST "bookmark");
+    xmlAddChild(item, xmlNewText(BAD_CAST "\n"));
+    xmlSetProp(item, BAD_CAST "href", BAD_CAST bm_item->url);
+    xmlSetProp(item, BAD_CAST "favicon",
+               BAD_CAST bm_item->favicon_file);
+    xmlSetProp(item, BAD_CAST "thumbnail",
+               BAD_CAST bm_item->thumbnail_file);
+
+    s = g_strndup(bm_item->name, strlen(bm_item->name) - 3);
+    xmlNewTextChild(item, NULL, BAD_CAST "title", BAD_CAST s);
+    g_free(s);
+
+    metadata =
+        xmlNewChild(xmlNewChild(item, NULL, BAD_CAST "info", NULL),
+                    NULL, BAD_CAST "metadata", NULL);
+    xmlNewChild(metadata, NULL, BAD_CAST "time_visited", BAD_CAST last_visited);
+    xmlNewChild(metadata, NULL, BAD_CAST "time_added", BAD_CAST added);
+
+    s = g_strdup_printf("%d", bm_item->visit_count);
+    xmlNewChild(metadata, NULL, BAD_CAST "visit_count", BAD_CAST s);
+    g_free(s);
+  }
+
+  g_free(last_visited);
+  g_free(added);
+
+  if (bm_item->isOperatorBookmark)
+  {
+    gchar *s = g_strdup_printf("%d", bm_item->isOperatorBookmark);
+
+    xmlNewChild(metadata, NULL, BAD_CAST "operator_bookmark", BAD_CAST s);
+    g_free(s);
+
+    s = g_strdup_printf("%d", bm_item->isDeleted);
+    xmlNewChild(metadata, NULL, BAD_CAST "deleted", BAD_CAST s);
+    g_free(s);
+  }
+
+  list_len = g_slist_length(bm_item->list);
+  list = bm_item->list;
+
+  while (list_len--)
+  {
+    add_xmlnode_to_parent((BookmarkItem *)list->data, item);
+    list = list->next;
+  }
+
+  return item;
+}
 
 gboolean
 bm_engine_add_duplicate_item(BookmarkItem *parent, BookmarkItem *bm_item)
@@ -1344,17 +1513,10 @@ bookmark_set_operator_bookmark_as_deleted(BookmarkItem *bm_item,
 
   (void)file_name;
 
-  if (!bm_item)
-  {
-    g_print(" %s\n", "\nInvalid Input Parameter");
-    return FALSE;
-  }
+  CHECK_PARAM(!bm_item, "\nInvalid Input Parameter", return FALSE);
 
-  if (!bm_item->isOperatorBookmark)
-  {
-    g_print(" %s\n", "\nBM Not Operator BM");
-    return FALSE;
-  }
+  CHECK_PARAM(!bm_item->isOperatorBookmark, "\nBM Not Operator BM",
+              return FALSE);
 
   if (!doc)
     return FALSE;
@@ -1366,7 +1528,7 @@ bookmark_set_operator_bookmark_as_deleted(BookmarkItem *bm_item,
 
   if (node && (node = get_node_by_tag(node->children, "deleted")))
   {
-    xmlNodeSetContent(node, (const xmlChar *)"1");
+    xmlNodeSetContent(node, BAD_CAST "1");
     g_slist_free(list);
     return TRUE;
   }
@@ -1398,6 +1560,97 @@ SortType osso_bookmark_gconf_get_int(gchar * key)
   }
 
   return 0;
+}
+
+gboolean
+osso_bookmark_gconf_set_int(gchar *key, gint val)
+{
+  GConfClient *client;
+
+  if (key && (client = osso_bookmark_gconf_init_default_client()))
+  {
+    gconf_client_set_int(client, key, val, NULL);
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+gboolean
+opened_bookmark_remove(BookmarkItem *node, xmlNodePtr root_element)
+{
+  GSList *list;
+
+  if (!node)
+    return FALSE;
+
+  list = g_slist_reverse(get_complete_path(node));
+  nodeptriter = 1;
+
+  if (root_element)
+  {
+    xmlNode *n = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+    if (n)
+    {
+      g_slist_free(list);
+      xmlUnlinkNode(n);
+      xmlFreeNodeList(n);
+      return TRUE;
+    }
+  }
+
+  g_slist_free(list);
+
+  return FALSE;
+}
+
+gboolean
+bookmark_set_visit_count(BookmarkItem *bm_item, const gchar *val,
+                         const gchar *file_name, xmlDocPtr doc,
+                         xmlNode *root_element)
+{
+  GSList *list;
+  int list_len;
+  xmlNode *node;
+
+  CHECK_PARAM(!bm_item || !val, "\nInvalid Input Parameter", return NULL);
+
+  (void)file_name;
+
+  if (!doc)
+    return NULL;
+
+  list = g_slist_reverse(get_complete_path(bm_item));
+  list_len = g_slist_length(list);
+  nodeptriter = 1;
+
+  node = get_parent_nodeptr(list, root_element, list_len);
+
+  if (!node)
+    goto err;
+
+  node = get_node_by_tag(node->children, BAD_CAST "visit_count");
+  if (node)
+  {
+    xmlNodeSetContent(node, BAD_CAST val);
+    g_slist_free(list);
+    return TRUE;
+  }
+
+  node = get_node_by_tag(node->children, BAD_CAST "metadata");
+
+  if (!node)
+    goto err;
+
+  node = xmlNewChild(node, NULL, BAD_CAST "visit_count", BAD_CAST val);
+  g_slist_free(list);
+
+  return !!node;
+
+err:
+  g_slist_free(list);
+  return NULL;
 }
 
 #ifdef BOOKMARK_PARSER_TEST
@@ -1474,21 +1727,20 @@ int main()
       return 1;
     }
 
-  __bookmark_import("/tmp/bookmarks.html", NULL, &bm1);
-/*  __bookmark_import("/tmp/bookmarks.html", NULL, &bm2);
+  /*__bookmark_import("/tmp/bookmarks.html", NULL, &bm1);
+  bookmark_import("/tmp/bookmarks.html", NULL, &bm2);
 
-  compare(bm1, bm2, FALSE);
+  compare(bm1, bm2, FALSE);*/
 
-  __get_root_bookmark(&bm1);
-
-  get_root_bookmark(&bm2);
+  __get_root_bookmark(&bm1, MYBOOKMARKS);
+  get_root_bookmark(&bm2, MYBOOKMARKS);
 
   compare(bm1, bm2, TRUE);
-*//*
+/*
   GSList *l = osso_bookmark_get_folders_list();
 */
 
-  __netscape_export_bookmarks("/tmp/export2.html", bm1->list, "PARENT_NAME");
+  //__netscape_export_bookmarks("/tmp/export2.html", bm1->list, "PARENT_NAME");
 
   return 0;
 }
