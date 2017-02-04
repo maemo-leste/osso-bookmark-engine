@@ -72,7 +72,8 @@ get_attribute_pointer(xmlNode *node, const char *attribute)
 
   do
   {
-    if (node->type == 1 && !xmlStrcmp(node->name, BAD_CAST attribute))
+    if (node->type == XML_ELEMENT_NODE &&
+        !xmlStrcmp(node->name, BAD_CAST attribute))
       break;
 
     node = node->next;
@@ -1467,6 +1468,95 @@ add_bookmark_item(const BookmarkItem *bm_item)
   return item;
 }
 
+static xmlNode *
+get_parent_nodeptr(GSList *items_list, xmlNode *node, int list_len)
+{
+  xmlNode *n;
+  gboolean found = FALSE;
+
+  if ( !items_list || !node )
+    return NULL;
+
+  if (list_len == 1)
+  {
+    n = node->children;
+
+    while (n && xmlStrcmp(n->name, BAD_CAST "title"))
+      n = n->next;
+
+    return n;
+  }
+
+  for (n = node->children; n; n = n->next)
+  {
+    if (n->type != XML_ELEMENT_NODE)
+      continue;
+
+    if (xmlStrcmp(n->name, BAD_CAST "folder"))
+    {
+      if (!xmlStrcmp(n->name, BAD_CAST "bookmark"))
+      {
+        xmlChar *title =
+            xmlNodeGetContent(get_attribute_pointer(n->children, "title"));
+
+        if (nodeptriter)
+        {
+          gchar *data = g_strdup(g_slist_nth_data(items_list, nodeptriter));
+
+          if (data)
+          {
+            size_t len = strlen(data);
+
+            if (len > 2)
+              data[len - 3] = 0;
+
+            if (title && !strcmp((const char *)title, data) )
+              found = TRUE;
+
+            g_free(data);
+          }
+        }
+
+        if (title)
+          xmlFree(title);
+
+        if (found)
+          return n;
+      }
+    }
+    else
+    {
+      const gchar *data = g_slist_nth_data(items_list, nodeptriter);
+      xmlChar *title =
+          xmlNodeGetContent(get_attribute_pointer(n->children, "title"));
+
+      if (data && title && !strcmp((const char *)title, data))
+      {
+        xmlNode *next;
+
+        if (list_len == ++nodeptriter)
+          found = TRUE;
+
+        xmlFree(title);
+        title = NULL;
+
+        if (found)
+          return n;
+
+        next = get_parent_nodeptr(items_list, n, list_len);
+
+        if (next)
+          return next;
+      }
+
+      if (title)
+        xmlFree(title);
+    }
+  }
+
+  return n;
+}
+
 gboolean
 bm_engine_add_duplicate_item(BookmarkItem *parent, BookmarkItem *bm_item)
 {
@@ -1614,12 +1704,12 @@ bookmark_set_visit_count(BookmarkItem *bm_item, const gchar *val,
   int list_len;
   xmlNode *node;
 
-  CHECK_PARAM(!bm_item || !val, "\nInvalid Input Parameter", return NULL);
+  CHECK_PARAM(!bm_item || !val, "\nInvalid Input Parameter", return FALSE);
 
   (void)file_name;
 
   if (!doc)
-    return NULL;
+    return FALSE;
 
   list = g_slist_reverse(get_complete_path(bm_item));
   list_len = g_slist_length(list);
@@ -1630,7 +1720,7 @@ bookmark_set_visit_count(BookmarkItem *bm_item, const gchar *val,
   if (!node)
     goto err;
 
-  node = get_node_by_tag(node->children, BAD_CAST "visit_count");
+  node = get_node_by_tag(node->children, "visit_count");
   if (node)
   {
     xmlNodeSetContent(node, BAD_CAST val);
@@ -1638,7 +1728,7 @@ bookmark_set_visit_count(BookmarkItem *bm_item, const gchar *val,
     return TRUE;
   }
 
-  node = get_node_by_tag(node->children, BAD_CAST "metadata");
+  node = get_node_by_tag(node->children, "metadata");
 
   if (!node)
     goto err;
@@ -1650,7 +1740,60 @@ bookmark_set_visit_count(BookmarkItem *bm_item, const gchar *val,
 
 err:
   g_slist_free(list);
-  return NULL;
+
+  return FALSE;
+}
+
+gboolean
+bookmark_set_name(BookmarkItem *bm_item, const gchar *val, xmlDocPtr doc,
+                  xmlNode *root_element)
+{
+  gboolean rv = FALSE;
+  GSList *list;
+  xmlNode *node;
+  xmlNode *children;
+
+  if (!val || !bm_item)
+    return FALSE;
+
+  list = g_slist_reverse(get_complete_path(bm_item));
+
+  nodeptriter = 1;
+  node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+  if (node && (children = node->children) != 0)
+  {
+    xmlChar *val_enc;
+
+    while (children && xmlStrcmp(children->name, BAD_CAST "title") )
+      children = children->next;
+
+    if (!children)
+      goto out;
+
+    if (bm_item->isFolder)
+    {
+      val_enc = xmlEncodeEntitiesReentrant(doc, BAD_CAST val);
+      xmlNodeSetContent(children, val_enc);
+    }
+    else
+    {
+      gchar *s = g_strndup(val, strlen(val) - 3);
+      val_enc = xmlEncodeEntitiesReentrant(doc, BAD_CAST s);
+
+      xmlNodeSetContent(children, val_enc);
+      g_free(s);
+    }
+
+    xmlFree(val_enc);
+
+    rv = TRUE;
+  }
+
+out:
+  g_slist_free(list);
+
+  return rv;
 }
 
 #ifdef BOOKMARK_PARSER_TEST
