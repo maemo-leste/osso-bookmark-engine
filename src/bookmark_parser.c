@@ -1896,6 +1896,141 @@ bookmark_add_child(BookmarkItem *parent, BookmarkItem *bm_item, gint position,
   return BM_OK;
 }
 
+gboolean
+bm_engine_add_folder(BookmarkItem *parent, BookmarkItem *bm_item,
+                     const gchar *file_name)
+{
+  gchar *bm_file;
+  xmlDoc *doc;
+  gboolean rv = FALSE;
+
+  (void)parent;
+  (void)file_name;
+
+  bm_file = file_path_with_home_dir(MYBOOKMARKS);
+  doc = xmlParseFile(bm_file);
+
+  if (doc)
+  {
+    xmlAddChild(xmlDocGetRootElement(doc), add_bookmark_item(bm_item));
+    set_lock("/.bookmarks/.lock");
+    rv = dump_xml_doc_and_fsync(doc, bm_file);
+    del_lock("/.bookmarks/.lock");
+    xmlFreeDoc(doc);
+  }
+
+  g_free(bm_file);
+
+  return rv;
+}
+
+gboolean
+bookmark_remove(BookmarkItem *bm_item, gchar *file_name)
+{
+  gboolean rv = FALSE;
+  gchar *bm_file;
+  xmlDoc *doc;
+
+  (void)file_name;
+
+  if (!bm_item)
+    return FALSE;
+
+  bm_file = file_path_with_home_dir("/.bookmarks/MyBookmarks.xml");
+  doc = xmlReadFile(bm_file, 0, XML_PARSE_SAX1 | XML_PARSE_RECOVER);
+
+  if (doc)
+  {
+    xmlNode *node = xmlDocGetRootElement(doc);
+    GSList *list = g_slist_reverse(get_complete_path(bm_item));
+
+    nodeptriter = 1;
+
+    if (node)
+    {
+      node = get_parent_nodeptr(list, node, g_slist_length(list));
+
+      if (node)
+      {
+        xmlUnlinkNode(node);
+        xmlFreeNodeList(node);
+
+        set_lock("/.bookmarks/.lock");
+        rv = dump_xml_doc_and_fsync(doc, bm_file);
+        del_lock("/.bookmarks/.lock");
+      }
+    }
+
+    g_slist_free(list);
+    xmlFreeDoc(doc);
+  }
+
+  g_free(bm_file);
+
+  return rv;
+}
+
+gboolean
+bookmark_remove_list(GSList *item_list)
+{
+  gchar *bm_file;
+  xmlDoc *doc;
+  xmlNode *node;
+  gboolean rv;
+
+  g_return_val_if_fail("item_list", FALSE);
+
+  bm_file = file_path_with_home_dir("/.bookmarks/MyBookmarks.xml");
+  doc = xmlReadFile(bm_file, 0, 513);
+
+  if (!doc)
+  {
+    g_free(bm_file);
+    return FALSE;
+  }
+
+  node = xmlDocGetRootElement(doc);
+  if (!node)
+    goto out;
+
+  while (item_list)
+  {
+    xmlNode *n;
+
+    if (((BookmarkItem *)item_list->data)->isOperatorBookmark)
+    {
+      bookmark_set_operator_bookmark_as_deleted(item_list->data, MYBOOKMARKS,
+                                                doc, node);
+    }
+    else
+    {
+      GSList *list = g_slist_reverse(get_complete_path(item_list->data));
+
+      nodeptriter = 1;
+      n = get_parent_nodeptr(list, node, g_slist_length(list));
+      g_slist_free(list);
+
+      if (n)
+      {
+        xmlUnlinkNode(n);
+        xmlFreeNodeList(n);
+      }
+    }
+
+    item_list = item_list->next;
+  }
+
+  set_lock("/.bookmarks/.lock");
+  rv = dump_xml_doc_and_fsync(doc, bm_file);
+  del_lock("/.bookmarks/.lock");
+
+out:
+  xmlFreeDoc(doc);
+  g_free(bm_file);
+
+  return rv;
+}
+
 #ifdef BOOKMARK_PARSER_TEST
 
 #include <assert.h>
