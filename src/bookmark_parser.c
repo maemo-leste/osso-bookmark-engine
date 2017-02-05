@@ -1976,7 +1976,7 @@ bookmark_remove_list(GSList *item_list)
   gchar *bm_file;
   xmlDoc *doc;
   xmlNode *node;
-  gboolean rv;
+  gboolean rv = FALSE;
 
   g_return_val_if_fail("item_list", FALSE);
 
@@ -2027,6 +2027,70 @@ bookmark_remove_list(GSList *item_list)
 out:
   xmlFreeDoc(doc);
   g_free(bm_file);
+
+  return rv;
+}
+
+gboolean
+bookmark_set_time_last_visited(BookmarkItem *bm_item, const gchar *val,
+                               const gchar *file_name, xmlDocPtr doc,
+                               xmlNode *root_element)
+{
+  gboolean rv = FALSE;
+  GSList *list;
+  xmlNode *node;
+
+  (void)file_name;
+
+  CHECK_PARAM(!bm_item || !val, "\nInvalid Input Parameter", return FALSE);
+
+  if (!doc)
+    return FALSE;
+
+  list = g_slist_reverse(get_complete_path(bm_item));
+
+  nodeptriter = 1;
+
+  node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+  if (node)
+  {
+    node = get_node_by_tag(node->children, "time_visited");
+
+    if (node)
+    {
+      xmlNodeSetContent(node, BAD_CAST val);
+      rv = TRUE;
+    }
+  }
+
+  return rv;
+}
+
+gboolean
+bookmark_set_thumbnail(BookmarkItem *bm_item, const gchar *val, xmlDocPtr doc,
+                       xmlNode *root_element)
+{
+  gboolean rv = FALSE;
+  GSList *list;
+  xmlNode *node;
+
+  (void)doc;
+
+  if (!bm_item || !val || bm_item->isFolder )
+    return FALSE;
+
+  list = g_slist_reverse(get_complete_path(bm_item));
+  nodeptriter = 1;
+  node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+  if (node)
+  {
+    xmlSetProp(node, BAD_CAST "thumbnail", BAD_CAST val);
+    rv = TRUE;
+  }
+
+  g_slist_free(list);
 
   return rv;
 }
