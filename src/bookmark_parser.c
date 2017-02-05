@@ -1796,6 +1796,106 @@ out:
   return rv;
 }
 
+gboolean
+bookmark_set_url(BookmarkItem *bm_item, const gchar *val, xmlDocPtr doc,
+                 xmlNode *root_element)
+{
+  gboolean rv = FALSE;
+  GSList *list;
+  xmlNode *node;
+
+  (void)doc;
+
+  if (!bm_item || !val)
+    return FALSE;
+
+  CHECK_PARAM(bm_item->isFolder, "\nThe BookmarkItem is a Folder",
+              return FALSE);
+
+  list = g_slist_reverse(get_complete_path(bm_item));
+  nodeptriter = 1;
+  node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+  while (node && xmlStrcmp(node->name, BAD_CAST "bookmark"))
+    node = node->next;
+
+  if (node)
+  {
+    xmlChar *new_href, *old_href;
+    gchar *new_url, *old_url;
+
+    old_href = xmlGetProp(node, BAD_CAST "href");
+    xmlSetProp(node, BAD_CAST "href", BAD_CAST val);
+    new_href = xmlGetProp(node, BAD_CAST "href");
+    old_url = get_base_url_name((const gchar *)old_href);
+    new_url = get_base_url_name((const gchar *)new_href);
+
+    if (strcmp(old_url, new_url))
+    {
+      xmlSetProp(node, BAD_CAST "favicon", BAD_CAST "");
+      xmlSetProp(node, BAD_CAST "thumbnail", BAD_CAST "");
+    }
+
+    xmlFree(old_href);
+    xmlFree(new_href);
+    g_free(old_url);
+    g_free(new_url);
+
+    rv = TRUE;
+  }
+
+  g_slist_free(list);
+
+  return rv;
+}
+
+BMError
+bookmark_add_child(BookmarkItem *parent, BookmarkItem *bm_item, gint position,
+                   xmlNode *root_element)
+{
+  GSList *list;
+
+  CHECK_PARAM(!bm_item || !parent || !parent->isFolder,
+              "\nInvalid Input Parameter", return BM_INVALID_PARAMETER);
+
+  if (parent->list)
+  {
+    xmlNode *node;
+
+    if (position == -1)
+      position = g_slist_length(parent->list) - 1;
+
+    list = g_slist_reverse(
+             get_complete_path(g_slist_nth(parent->list, position)->data));
+    nodeptriter = 1;
+    node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+    if (node)
+      xmlAddPrevSibling(node, add_bookmark_item(bm_item));
+  }
+  else
+  {
+    guint list_len;
+    xmlNode *node, *new_node;
+
+    list = g_slist_reverse(get_complete_path(parent));
+    nodeptriter = 1;
+    list_len = g_slist_length(list);
+    node = get_parent_nodeptr(list, root_element, list_len);
+    new_node = add_bookmark_item(bm_item);
+
+    if (list_len == 1)
+      xmlAddSibling(node, new_node);
+    else
+      xmlAddChild(node, new_node);
+
+  }
+
+  g_slist_free(list);
+
+  return BM_OK;
+}
+
 #ifdef BOOKMARK_PARSER_TEST
 
 #include <assert.h>
