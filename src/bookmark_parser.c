@@ -16,6 +16,9 @@
 #define TEST(fun) fun
 #endif
 
+SortOrder sort_order;
+guint nodeptriter = 0;
+
 BookmarkItem *
 create_bookmark_new(void)
 {
@@ -1283,8 +1286,6 @@ again:
   return node;
 }
 
-gboolean nodeptriter = FALSE;
-
 static xmlNode *
 create_new_xmlnode(xmlNode *parent_node, BookmarkItem *bm_item)
 {
@@ -1469,12 +1470,12 @@ add_bookmark_item(const BookmarkItem *bm_item)
 }
 
 static xmlNode *
-get_parent_nodeptr(GSList *items_list, xmlNode *node, int list_len)
+get_parent_nodeptr(GSList *items_list, xmlNode *node, guint list_len)
 {
   xmlNode *n;
   gboolean found = FALSE;
 
-  if ( !items_list || !node )
+  if (!items_list || !node)
     return NULL;
 
   if (list_len == 1)
@@ -2093,6 +2094,155 @@ bookmark_set_thumbnail(BookmarkItem *bm_item, const gchar *val, xmlDocPtr doc,
   g_slist_free(list);
 
   return rv;
+}
+
+BMError
+opened_bm_engine_insert_node_at_sorted_position(BookmarkItem *parent,
+                                                BookmarkItem *bm_item,
+                                                SortOrder sort_order,
+                                                xmlNode *root_element)
+{
+  xmlNode *bm_node;
+  GSList *list;
+  xmlNode *node;
+
+  bm_node = add_bookmark_item(bm_item);
+
+  list = g_slist_reverse(get_complete_path(parent));
+  nodeptriter = 1;
+  node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+  switch (sort_order)
+  {
+    case SORT_BY_NAME_DSC:
+      xmlAddNextSibling(node, bm_node);
+      break;
+    case SORT_BY_NAME_ASC:
+      xmlAddPrevSibling(node, bm_node);
+      break;
+    default: /* to silence the compiler */
+      break;
+  }
+
+  g_slist_free(list);
+
+  return BM_OK;
+}
+
+BMError
+bm_engine_insert_node_at_sorted_position(BookmarkItem *parent,
+                                         BookmarkItem *bm_item,
+                                         SortOrder sort_order, xmlDocPtr doc,
+                                         xmlNode *root_element)
+{
+  xmlNode *bm_node;
+  GSList *list;
+  xmlNode *node;
+
+  (void)doc;
+
+  bm_node = add_bookmark_item(bm_item);
+  list = g_slist_reverse(get_complete_path(parent));
+  nodeptriter = 1;
+  node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+  switch (sort_order)
+  {
+    case SORT_BY_NAME_DSC:
+      xmlAddNextSibling(node, bm_node);
+      break;
+    case SORT_BY_NAME_ASC:
+      xmlAddPrevSibling(node, bm_node);
+      break;
+    default: /* to silence the compiler */
+      break;
+  }
+
+  g_slist_free(list);
+
+  return BM_OK;
+}
+
+BMError
+bookmark_add_child_at_sorted_position(BookmarkItem *parent,
+                                      BookmarkItem *bm_item,
+                                      SortType presentSortType, xmlDocPtr doc,
+                                      xmlNode *root_element)
+{
+  BookmarkItem *parent_item = NULL;
+
+  switch (presentSortType)
+  {
+    case SORT_BY_NAME_ASC:
+    case SORT_BY_NAME_DSC:
+      parent_item = bookmark_gslist_find(parent->list, bm_item,
+                                         presentSortType);
+      break;
+    case SORT_BY_LASTVISIT_ASC:
+    case SORT_BY_LASTVISIT_DSC:
+      parent_item = bookmark_gslist_find_by_addeddate(parent->list, bm_item,
+                                                      INSERT_BY_VISIT_TIME,
+                                                      presentSortType);
+      break;
+    case SORT_BY_VISITCOUNT_ASC:
+      parent_item = g_slist_last(parent->list)->data;
+      break;
+  }
+
+  return
+      bm_engine_insert_node_at_sorted_position(parent_item, bm_item,
+                                               sort_order, doc, root_element);
+}
+
+BMError
+opened_bookmark_add_child(BookmarkItem *parent, BookmarkItem *bm_item,
+                          gint position, xmlNode *root_element)
+{
+  xmlNode *node;
+  GSList *list;
+
+  CHECK_PARAM(!bm_item || !parent || !parent->isFolder,
+              "\nInvalid Input Parameter", return BM_INVALID_PARAMETER);
+
+  if (parent->list)
+  {
+    if (position == -1)
+      position = g_slist_length(parent->list) - 1;
+
+    list = g_slist_reverse(get_complete_path(g_slist_nth(parent->list,
+                                                         position)->data));
+    nodeptriter = 1;
+    node = get_parent_nodeptr(list, root_element, g_slist_length(list));
+
+    if (node)
+      xmlAddPrevSibling(node, add_bookmark_item(bm_item));
+
+    g_slist_free(list);
+  }
+  else
+  {
+    guint len;
+
+    list = g_slist_reverse(get_complete_path(parent));
+    len = g_slist_length(list);
+    nodeptriter = 1;
+    node = get_parent_nodeptr(list, root_element, len);
+
+    if (len == 1)
+      xmlAddSibling(node, add_bookmark_item(bm_item));
+    else
+      xmlAddChild(node, add_bookmark_item(bm_item));
+
+    g_slist_free(list);
+  }
+
+  return BM_OK;
+}
+
+static gint
+sort_bookmark_by_name(BookmarkItem *a, BookmarkItem *b)
+{
+  return g_utf8_collate(a->name, b->name);
 }
 
 #ifdef BOOKMARK_PARSER_TEST
