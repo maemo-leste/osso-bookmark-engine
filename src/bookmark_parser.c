@@ -1,6 +1,5 @@
 #include "osso_bookmark_parser.h"
 
-#include <libgnomevfs/gnome-vfs.h>
 #include <gio/gio.h>
 #include <glib/gprintf.h>
 #include <gconf/gconf-client.h>
@@ -9,6 +8,8 @@
 #include <string.h>
 #include <libintl.h>
 #include <ctype.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #ifdef BOOKMARK_PARSER_TEST
 #define TEST(fun) __##fun
@@ -996,7 +997,7 @@ osso_bookmark_get_dir_node(const BookmarkItem *bm_item, GSList **folders)
 }
 
 GSList *
-osso_bookmark_get_folders_list(void)
+TEST(osso_bookmark_get_folders_list)(void)
 {
   GSList *folders;
   BookmarkItem *bm_item;
@@ -2487,6 +2488,7 @@ out:
 
 #ifdef BOOKMARK_PARSER_TEST
 
+#include <libgnomevfs/gnome-vfs.h>
 #include <assert.h>
 
 static void
@@ -2559,20 +2561,27 @@ int main()
       return 1;
     }
 
-  /*__bookmark_import("/tmp/bookmarks.html", NULL, &bm1);
-  bookmark_import("/tmp/bookmarks.html", NULL, &bm2);
-
-  compare(bm1, bm2, FALSE);*/
+  /* export mozilla bookmarks to /tmp/bookmarks.html on device or qemu */
+  if (__bookmark_import("/tmp/bookmarks.html", NULL, &bm1) &&
+      bookmark_import("/tmp/bookmarks.html", NULL, &bm2))
+  {
+    compare(bm1, bm2, FALSE);
+  }
 
   __get_root_bookmark(&bm1, MYBOOKMARKS);
   get_root_bookmark(&bm2, MYBOOKMARKS);
 
   compare(bm1, bm2, TRUE);
-/*
-  GSList *l = osso_bookmark_get_folders_list();
-*/
 
-  //__netscape_export_bookmarks("/tmp/export2.html", bm1->list, "PARENT_NAME");
+  /* too lazy to write compare func for those */
+#if 0
+  GSList *l1 = __osso_bookmark_get_folders_list();
+  GSList *l2 = osso_bookmark_get_folders_list();
+#endif
+
+  /* please, compare those 2 files by hand */
+  __netscape_export_bookmarks("/tmp/export1.html", bm1->list, "PARENT_NAME");
+  netscape_export_bookmarks("/tmp/export2.html", bm2->list, "PARENT_NAME");
 
   return 0;
 }
