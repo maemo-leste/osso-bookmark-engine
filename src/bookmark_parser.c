@@ -2120,13 +2120,11 @@ opened_bm_engine_insert_node_at_sorted_position(BookmarkItem *parent,
 
   switch (sort_order)
   {
-    case SORT_BY_NAME_DSC:
+    case BM_DSC:
       xmlAddNextSibling(node, bm_node);
       break;
-    case SORT_BY_NAME_ASC:
+    case BM_ASC:
       xmlAddPrevSibling(node, bm_node);
-      break;
-    default: /* to silence the compiler */
       break;
   }
 
@@ -2154,13 +2152,11 @@ bm_engine_insert_node_at_sorted_position(BookmarkItem *parent,
 
   switch (sort_order)
   {
-    case SORT_BY_NAME_DSC:
+    case BM_DSC:
       xmlAddNextSibling(node, bm_node);
       break;
-    case SORT_BY_NAME_ASC:
+    case BM_ASC:
       xmlAddPrevSibling(node, bm_node);
-      break;
-    default: /* to silence the compiler */
       break;
   }
 
