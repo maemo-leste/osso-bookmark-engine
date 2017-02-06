@@ -2366,6 +2366,125 @@ out:
   return data;
 }
 
+BookmarkItem *
+bookmark_gslist_find_by_addeddate(GSList *parent_list, BookmarkItem *newItem,
+                                  insertParam ins_param,
+                                  SortType presentSortType)
+{
+  GSList *l;
+  GSList *sorted;
+  GSList *list;
+  BookmarkItem *tmp1;
+  GSList *next;
+  GTime cur_time;
+  GTime new_time;
+  BookmarkItem *old_item;
+  gboolean old_is_folder;
+  BookmarkItem *tmp_data;
+  BookmarkItem *tmp2;
+
+  l = g_slist_copy(parent_list);
+
+  if (!g_slist_length(l))
+  {
+    old_item = l->data;
+    sort_order = BM_ASC;
+    g_slist_free(l);
+    return old_item;
+  }
+
+  if (newItem->isFolder)
+    list = g_slist_sort(l, (GCompareFunc)sort_bookmark_by_name);
+  else
+  {
+    sorted = g_slist_sort(l, (GCompareFunc)sort_bookmark_by_time);
+    list = sorted;
+
+    if (presentSortType == SORT_BY_LASTVISIT_DSC)
+      list = g_slist_reverse(sorted);
+  }
+
+  if (list)
+  {
+    next = list;
+    tmp1 = 0;
+    cur_time = 0;
+    new_time = 0;
+    tmp2 = 0;
+
+    while (1)
+    {
+      old_item = next->data;
+      old_is_folder = ((BookmarkItem *)next->data)->isFolder;
+
+      if (ins_param == INSERT_BY_VISIT_TIME)
+      {
+        cur_time = old_item->time_last_visited;
+        new_time = newItem->time_last_visited;
+      }
+
+      if (old_is_folder)
+      {
+        if (newItem->isFolder)
+        {
+          if (strcasecmp(old_item->name, newItem->name) >= 0)
+          {
+            sort_order = BM_ASC;
+            g_slist_free(list);
+            return old_item;
+          }
+
+          tmp1 = old_item;
+        }
+      }
+      else if (!old_is_folder && !newItem->isFolder)
+      {
+        if (presentSortType == SORT_BY_LASTVISIT_ASC)
+        {
+          if (cur_time > new_time)
+          {
+            sort_order = BM_ASC;
+            g_slist_free(list);
+            return old_item;
+          }
+        }
+        else if (presentSortType == SORT_BY_LASTVISIT_DSC &&
+                 cur_time < new_time)
+        {
+          sort_order = BM_ASC;
+          g_slist_free(list);
+          return old_item;
+        }
+
+        tmp2 = next->data;
+      }
+
+      next = next->next;
+
+      if (!next)
+        goto out;
+    }
+  }
+
+  tmp2 = 0;
+  tmp1 = 0;
+
+out:
+  tmp_data = list->data;
+  g_slist_free(list);
+  sort_order = BM_DSC;
+
+  if (newItem->isFolder)
+    old_item = tmp1;
+  else
+    old_item = tmp2;
+
+  if (!old_item)
+    return tmp_data;
+
+  return old_item;
+}
+
 #ifdef BOOKMARK_PARSER_TEST
 
 #include <assert.h>
