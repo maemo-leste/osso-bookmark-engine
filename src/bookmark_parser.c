@@ -2259,7 +2259,112 @@ sort_bookmark_by_time(BookmarkItem *a, BookmarkItem *b)
   return -1;
 }
 
+BookmarkItem *
+bookmark_gslist_find(GSList *parent_list, BookmarkItem *newItem,
+                     SortType presentSortType)
+{
+  GSList *l;
+  BookmarkItem *data;
+  GSList *sorted;
+  GSList *list;
+  GSList *next;
+  gboolean isFolder;
+  BookmarkItem *tmp_data;
+  BookmarkItem *tmp1;
+  BookmarkItem *tmp2;
 
+  l = g_slist_copy(parent_list);
+
+  if (g_slist_length(l))
+  {
+    sorted = g_slist_sort(l, (GCompareFunc)sort_bookmark_by_name);
+    list = sorted;
+
+    if (presentSortType == SORT_BY_NAME_DSC && !newItem->isFolder)
+      list = g_slist_reverse(sorted);
+
+    if (list)
+    {
+      next = list;
+      tmp2 = 0;
+      tmp1 = 0;
+
+      while (1)
+      {
+        data = next->data;
+        isFolder = ((BookmarkItem *)next->data)->isFolder;
+
+        if (isFolder)
+        {
+          if (newItem->isFolder)
+          {
+            if (strcasecmp(data->name, newItem->name) >= 0)
+            {
+              sort_order = BM_ASC;
+              g_slist_free(list);
+              return data;
+            }
+
+            tmp1 = data;
+          }
+        }
+        else if (!isFolder && !newItem->isFolder)
+        {
+          if (presentSortType)
+          {
+            if (presentSortType == SORT_BY_NAME_DSC &&
+                strcasecmp(data->name, newItem->name) <= 0)
+            {
+              sort_order = BM_ASC;
+              g_slist_free(list);
+              return data;
+            }
+          }
+          else if (strcasecmp(data->name, newItem->name) >= 0)
+          {
+            sort_order = BM_ASC;
+            g_slist_free(list);
+            return data;
+          }
+          tmp2 = data;
+        }
+
+        next = next->next;
+        if ( !next )
+          goto out;
+      }
+    }
+
+    tmp2 = 0;
+    tmp1 = 0;
+
+out:
+
+    tmp_data = list->data;
+    g_slist_free(list);
+    sort_order = BM_ASC;
+
+    if (newItem->isFolder)
+      data = tmp1;
+    else
+      data = tmp2;
+
+    if (!data)
+    {
+      data = tmp_data;
+      return data;
+    }
+  }
+  else
+  {
+    /* what ?!? Isn;t that a recipe for a SEGFAULT */
+    data = l->data;
+    sort_order = BM_ASC;
+    g_slist_free(l);
+  }
+
+  return data;
+}
 
 #ifdef BOOKMARK_PARSER_TEST
 
