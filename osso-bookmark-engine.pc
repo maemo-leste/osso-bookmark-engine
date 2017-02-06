@@ -1,0 +1,13 @@
+
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: osso-bookmark-engine
+Description: Bookmark Engine
+Requires: libxml-2.0 >= 2.6.7
+Version: 1.2.1
+Libs: -L${libdir} -lbookmarkengine
+Cflags: -I${includedir} 
+
