@@ -19,6 +19,11 @@
 SortOrder sort_order;
 guint nodeptriter = 0;
 
+SortOrder bookmark_get_sorting_order(void)
+{
+  return sort_order;
+}
+
 BookmarkItem *
 create_bookmark_new(void)
 {
@@ -1157,8 +1162,8 @@ netscape_export_bookmarks_item(GOutputStream *out, BookmarkItem *bm_item,
 }
 
 gboolean
-__netscape_export_bookmarks(const gchar *filename, GSList *root,
-                          const gchar *bm_parent_name)
+TEST(netscape_export_bookmarks)(const gchar *filename, GSList *root,
+                                const gchar *bm_parent_name)
 {
   GFile *file ;
   GFileOutputStream *out;
@@ -2245,11 +2250,22 @@ sort_bookmark_by_name(BookmarkItem *a, BookmarkItem *b)
   return g_utf8_collate(a->name, b->name);
 }
 
+static gint
+sort_bookmark_by_time(BookmarkItem *a, BookmarkItem *b)
+{
+  if (a->time_last_visited >= b->time_last_visited)
+    return a->time_last_visited != b->time_last_visited;
+
+  return -1;
+}
+
+
+
 #ifdef BOOKMARK_PARSER_TEST
 
 #include <assert.h>
 
-void
+static void
 compare(BookmarkItem *bm1, BookmarkItem *bm2, gboolean compare_times)
 {
   if (!bm1->thumbnail_file)
