@@ -866,12 +866,12 @@ TEST(bookmark_import)(const gchar *path, gchar *importFolderName,
 gboolean
 set_lock(gchar *lock_file_name)
 {
-  char *path;
+  gchar *path;
   FILE *fp;
 
   path = file_path_with_home_dir(lock_file_name);
   fp = fopen(path, "w");
-  g_free((gpointer)path);
+  g_free(path);
 
   if (fp)
   {
