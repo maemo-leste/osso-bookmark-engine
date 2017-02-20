@@ -1,3 +1,10 @@
+osso-bookmark-engine (2.0.0+0m5) unstable; urgency=low
+
+  * Fixed memory leaks
+  * use gio instead of gnomevfs
+
+ -- Ivaylo Dimitrov <ivo.g.dimitrov.75@gmail.com>  Mon, 20 Feb 2017 13:39:23 +0200
+
 osso-bookmark-engine (2:1.2.10+0m5) unstable; urgency=low
 
   * Initial RE release
