@@ -3,7 +3,7 @@ libdir = $(prefix)/lib
 incdir = $(prefix)/include
 pkgconfdir = $(libdir)/pkgconfig
 
-PKGDEPS = glib-2.0 gconf-2.0 libxml-2.0
+PKGDEPS = glib-2.0 gconf-2.0 libxml-2.0 gio-2.0
 CFLAGS += `pkg-config --cflags $(PKGDEPS)` -fPIC -Wall -O2
 LDFLAGS += `pkg-config --libs-only-L $(PKGDEPS)`
 LDLIBS += `pkg-config --libs-only-l --libs-only-other $(PKGDEPS)`
