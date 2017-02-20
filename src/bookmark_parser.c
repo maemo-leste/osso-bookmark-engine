@@ -943,7 +943,7 @@ set_bookmark_files_path(void)
   {
 
     if (access(bm_path, R_OK))
-      mkdir(bm_path, 0755);
+      mkdir(bm_path, 0644);
 
     bm_file_path = g_strdup_printf("%s%s", bm_path, "/MyBookmarks.xml");
     tn_path = g_strdup_printf("%s/%s", bm_path, "thumbnails");
@@ -967,7 +967,7 @@ set_bookmark_files_path(void)
     {
       if (access(tn_path, R_OK))
       {
-        mkdir(bm_path, 0755);
+        mkdir(tn_path, 0644);
         cmd = g_strdup_printf("cp %s/* %s",
                               "/usr/share/bookmark-manager/thumbnails",
                               tn_path);
