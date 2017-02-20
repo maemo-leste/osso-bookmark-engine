@@ -1,4 +1,6 @@
 Source: osso-bookmark-engine
+Section: libs
+Priority: optional
 Maintainer: Ivaylo Dimitrov <ivo.g.dimitrov.75@gmail.com>
 Build-Depends: debhelper (>= 5), libtool, pkg-config,
  libglib2.0-dev, libxml2-dev, libgconf2-dev
@@ -6,12 +8,14 @@ Build-Depends: debhelper (>= 5), libtool, pkg-config,
 Package: osso-bookmark-engine
 Architecture: any
 Section: libs
+Priority: optional
 Depends: ${shlibs:Depends}
 Description: Bookmark engine for the Bookmark application.
 
 Package: osso-bookmark-engine-dev
 Architecture: any
 Section: devel
+Priority: optional
 Depends: osso-bookmark-engine
 Description: Bookmark engine for the Bookmark application.
   This package contains development header files
@@ -19,6 +23,7 @@ Description: Bookmark engine for the Bookmark application.
 Package: osso-bookmark-engine-dbg
 Architecture: any
 Section: devel
+Priority: optional
 Depends: osso-bookmark-engine (= ${binary:Version})
 Description: Bookmark engine for the Bookmark application.
   This package contains debug symbols
