@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #ifdef BOOKMARK_PARSER_TEST
 #define TEST(fun) __##fun
