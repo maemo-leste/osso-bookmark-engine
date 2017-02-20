@@ -390,6 +390,7 @@ create_bookmarks_backup(const gchar *file_name)
   gchar *bookmark_file;
   gchar *cmd;
   gchar *backup_file;
+  int status;
 
   (void)file_name;
 
@@ -403,8 +404,11 @@ create_bookmarks_backup(const gchar *file_name)
   g_free(backup_file);
   g_free(bookmark_file);
 
-  system(cmd);
+  status = system(cmd);
   g_free(cmd);
+
+  if (status == -1 || WEXITSTATUS(status))
+    return FALSE;
 
   return TRUE;
 }
@@ -576,29 +580,29 @@ ns_parse_bookmark_item(GString *string)
       int jump = 0;
       int i;
 
-      if (g_strncasecmp(iterator, "&amp;", 5) == 0)
+      if (g_ascii_strncasecmp(iterator, "&amp;", 5) == 0)
       {
         g_string_append_c(result, '&');
         jump = 5;
       }
-      else if (g_strncasecmp(iterator, "&lt;", 4) == 0)
+      else if (g_ascii_strncasecmp(iterator, "&lt;", 4) == 0)
       {
         g_string_append_c(result, '<');
         jump = 4;
       }
-      else if (g_strncasecmp (iterator, "&gt;", 4) == 0)
+      else if (g_ascii_strncasecmp (iterator, "&gt;", 4) == 0)
       {
 
         g_string_append_c(result, '>');
         jump = 4;
       }
-      else if (g_strncasecmp (iterator, "&quot;", 6) == 0)
+      else if (g_ascii_strncasecmp (iterator, "&quot;", 6) == 0)
       {
 
         g_string_append_c(result, '\"');
         jump = 6;
       }
-      else if (g_strncasecmp (iterator, "&#39;", 5) == 0)
+      else if (g_ascii_strncasecmp (iterator, "&#39;", 5) == 0)
       {
 
         g_string_append_c(result, '\'');
@@ -931,6 +935,7 @@ set_bookmark_files_path(void)
   gchar *bm_file_path;
   gchar *tn_path;
   gchar *cmd;
+  int status;
 
   bm_path = file_path_with_home_dir(".bookmarks");
 
@@ -948,7 +953,13 @@ set_bookmark_files_path(void)
       cmd = g_strdup_printf("cp %s%s %s",
                             "/usr/share/bookmark-manager/bookmarks",
                             "/MyBookmarks.xml", bm_path);
-      system(cmd);
+      status = system(cmd);
+
+      if (status == -1)
+        g_warning("%s failed with status -1", cmd);
+      else if (WEXITSTATUS(status))
+        g_warning("%s failed with status %d", cmd, WEXITSTATUS(status));
+
       g_free(cmd);
     }
 
@@ -960,7 +971,13 @@ set_bookmark_files_path(void)
         cmd = g_strdup_printf("cp %s/* %s",
                               "/usr/share/bookmark-manager/thumbnails",
                               tn_path);
-        system(cmd);
+        status = system(cmd);
+
+        if (status == -1)
+          g_warning("%s failed with status -1", cmd);
+        else if (WEXITSTATUS(status))
+          g_warning("%s failed with status %d", cmd, WEXITSTATUS(status));
+
         g_free(cmd);
       }
     }
@@ -1206,6 +1223,7 @@ TEST(netscape_export_bookmarks)(const gchar *filename, GSList *root,
 
   g_output_stream_close(G_OUTPUT_STREAM(out), NULL, NULL);
   g_object_unref(out);
+  g_object_unref(file);
 
   return TRUE;
 }
@@ -2484,6 +2502,7 @@ out:
 
 #ifdef BOOKMARK_PARSER_TEST
 
+#ifdef MAEMO5
 #include <libgnomevfs/gnome-vfs.h>
 #include <assert.h>
 
@@ -2546,10 +2565,11 @@ compare(BookmarkItem *bm1, BookmarkItem *bm2, gboolean compare_times)
     }
   }
 }
+#endif
 
 int main()
 {
-
+#ifdef MAEMO5
   BookmarkItem *bm1 = NULL, *bm2 = NULL;
 
   if (!gnome_vfs_init()) {
@@ -2578,7 +2598,21 @@ int main()
   /* please, compare those 2 files by hand */
   __netscape_export_bookmarks("/tmp/export1.html", bm1->list, "PARENT_NAME");
   netscape_export_bookmarks("/tmp/export2.html", bm2->list, "PARENT_NAME");
+#else
 
+  BookmarkItem *bm1 = NULL;
+
+  __bookmark_import("/tmp/bookmarks.html", NULL, &bm1);
+
+  __get_root_bookmark(&bm1, MYBOOKMARKS);
+
+  GSList *l1 = __osso_bookmark_get_folders_list();
+  __netscape_export_bookmarks("/tmp/export1.html", bm1->list, "PARENT_NAME");
+
+  free_bookmark_item(bm1);
+
+  g_slist_free_full(l1, g_free);
+#endif
   return 0;
 }
 #endif
