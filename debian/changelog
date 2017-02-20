@@ -1,4 +1,4 @@
-osso-bookmark-engine (2.0.0+0m5) unstable; urgency=low
+osso-bookmark-engine (2:2.0.0+0m5) unstable; urgency=low
 
   * Fixed memory leaks
   * use gio instead of gnomevfs
