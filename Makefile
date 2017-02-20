@@ -11,7 +11,7 @@ LDLIBS += `pkg-config --libs-only-l --libs-only-other $(PKGDEPS)`
 LIBS=libbookmarkengine.la
 
 %.lo: src/%.c
-	libtool --mode=compile $(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+	libtool --tag=CC --mode=compile $(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
 libbookmarkengine.la: bookmark_parser.lo
 	libtool --mode=link --tag=CC $(CC) $(LDFLAGS) -rpath $(libdir) -o $@ $^ $(LDLIBS)
@@ -27,4 +27,4 @@ install: $(addprefix install/,$(LIBS))
 	install osso-bookmark-engine.pc $(DESTDIR)$(pkgconfdir)
 
 clean:
-	rm -rf *.lo *.la .libs
+	rm -rf *.o *.lo *.la .libs
