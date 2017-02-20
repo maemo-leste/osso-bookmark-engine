@@ -2591,14 +2591,53 @@ int main()
   compare(bm1, bm2, TRUE);
 
   /* too lazy to write compare func for those */
-#if 0
   GSList *l1 = __osso_bookmark_get_folders_list();
   GSList *l2 = osso_bookmark_get_folders_list();
-#endif
 
-  /* please, compare those 2 files by hand */
+  do
+  {
+    assert(!strcmp(l1->data, l2->data));
+
+    l1 = l1->next;
+    l2 = l2->next;
+
+    if (!l1)
+      assert(!l2);
+
+    if (!l2)
+      assert(!l1);
+
+  }
+  while (l1);
+
+  g_slist_foreach(l1, (GFunc)g_free, NULL);
+  g_slist_free(l1);
+
+  g_slist_foreach(l2, (GFunc)g_free, NULL);
+  g_slist_free(l2);
+
   __netscape_export_bookmarks("/tmp/export1.html", bm1->list, "PARENT_NAME");
   netscape_export_bookmarks("/tmp/export2.html", bm2->list, "PARENT_NAME");
+
+  FILE *fp1 = fopen("/tmp/export1.html", "r");
+  FILE *fp2 = fopen("/tmp/export2.html", "r");
+
+  assert (fp1 && fp2);
+
+  while (1)
+  {
+    int c1 = fgetc(fp1);
+    int c2 = fgetc(fp2);
+
+    assert (c1 == c2);
+
+    if (c1 == EOF)
+      break;
+  }
+
+
+  fclose(fp1);
+  fclose(fp2);
 #else
 
   BookmarkItem *bm1 = NULL;
@@ -2614,6 +2653,7 @@ int main()
 
   g_slist_free_full(l1, g_free);
 #endif
+
   return 0;
 }
 #endif
