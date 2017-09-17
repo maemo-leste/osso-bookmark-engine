@@ -2,7 +2,7 @@ Source: osso-bookmark-engine
 Section: libs
 Priority: optional
 Maintainer: Ivaylo Dimitrov <ivo.g.dimitrov.75@gmail.com>
-Build-Depends: debhelper (>= 5), libtool, pkg-config,
+Build-Depends: debhelper (>= 5), libtool-bin, pkg-config,
  libglib2.0-dev, libxml2-dev, libgconf2-dev
 
 Package: osso-bookmark-engine
