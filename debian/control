@@ -19,11 +19,3 @@ Priority: optional
 Depends: osso-bookmark-engine
 Description: Bookmark engine for the Bookmark application.
   This package contains development header files
-
-Package: osso-bookmark-engine-dbg
-Architecture: any
-Section: devel
-Priority: optional
-Depends: osso-bookmark-engine (= ${binary:Version})
-Description: Bookmark engine for the Bookmark application.
-  This package contains debug symbols
